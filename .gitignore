@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+pnpm-lock.yaml
+yarn.lock
+package-lock.json
+
+# Next.js
+.next/
+out/
+*.local
+
+# Prisma
+.prisma/
+node_modules/@prisma/client/
+
+# TypeScript
+*.tsbuildinfo
+dist/
+.parcel-cache
+
+# Environment variables
+.env*
+!.env.example
+
+# Prisma schema
+prisma/dev.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker
+.dockerignore
+
+# Logs
+logs/
+*.log
+
+# Build artifacts
+.next/
+out/
+dist/

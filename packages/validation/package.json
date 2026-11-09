@@ -1,0 +1,13 @@
+{
+  "name": "clicknshop-validation",
+  "version": "1.0.0",
+  "description": "Zod validation schemas shared across ClickNShop",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "3.23.8"
+  }
+}

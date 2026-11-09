@@ -1,0 +1,20 @@
+{
+  "name": "clicknshop-api",
+  "version": "1.0.0",
+  "description": "ClickNShop API backend",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc --build",
+    "start": "node dist/server.js",
+    "dev": "ts-node --esm server.ts"
+  },
+  "dependencies": {
+    "express": "4.19.2",
+    "zod": "3.23.8",
+    "helmet": "7.0.0",
+    "cors": "2.8.5",
+    "express-rate-limit": "7.2.0",
+    "pg": "8.11.5"
+  }
+}

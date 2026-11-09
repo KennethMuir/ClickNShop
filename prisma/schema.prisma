@@ -1,0 +1,590 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource PostgreSQL {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ROLE-BASED ACCESS CONTROL
+// ============================================
+
+enum Role {
+  VISITOR
+  CUSTOMER
+  ADVERTISER
+  EDITOR
+  ADMIN
+  SUPERADMIN
+}
+
+enum Permission {
+  VIEW_MERCHANTS
+  CREATE_MERCHANT
+  EDIT_MERCHANT
+  VERIFY_MERCHANT
+  ARCHIVE_MERCHANT
+  VIEW_OFFERS
+  CREATE_OFFER
+  EDIT_OFFER
+  APPROVE_OFFER
+  ARCHIVE_OFFER
+  VIEW_ADVERTISERS
+  CREATE_ADVERTISER
+  EDIT_ADVERTISER
+  REVIEW_APPLICATIONS
+  APPROVE_ADVERTISER
+  SUSPEND_ADVERTISER
+  VIEW_CAMPAIGNS
+  CREATE_CAMPAIGN
+  EDIT_CAMPAIGN
+  APPROVE_CAMPAIGN
+  SUSPEND_CAMPAIGN
+  VIEW_ANALYTICS
+  VIEW_INVOICES
+  PAY_INVOICE
+  MANAGE_USERS
+  VIEW_AUDIT_LOG
+  SITE_SETTINGS_EDIT
+}
+
+model User {
+  id            String    @id @default(uuid())
+  name          String?
+  email         String    @unique
+  passwordHash  String
+  role          Role      @default(VISITOR)
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  refreshSessions RefreshSession[]
+  advertiserApplications AdvertiserApplication[]
+  auditLogs       AuditLog[]
+
+  @@ index([email])
+}
+
+model RefreshSession {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  token        String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  revokedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ============================================
+// AFFILIATE CATALOGUE
+// ============================================
+
+enum Category {
+  FASHION_AND_APParel
+  ELECTRONICS_AND_TECHNOLOGY
+  SOFTWARE_AND_BUSINESS
+  MOBILE_AND_CONNECTIVITY
+  TRAVEL_AND_TRANSPORT
+  PETS_AND_ANIMALS
+  HEALTH_AND_WELLNESS
+  ENTERTAINMENT_AND_GIFTS
+  HOME_AND_LIFESTYLE
+}
+
+enum AffiliateNetwork {
+  YAZING
+  // Additional networks can be added
+}
+
+enum MerchantStatus {
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+model AffiliateNetwork {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  baseUrl     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  affiliatePrograms AffiliateProgram[]
+}
+
+model AffiliateProgram {
+  id               String    @id @default(uuid())
+  networkId        String    @db.ForeignKey(AffiliateNetwork)
+  network          AffiliateNetwork @relation(fields: [networkId], references: [id])
+  programName      String
+  trackingParameters Json?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  affiliateLinks AffiliateLink[]
+}
+
+model AffiliateLink {
+  id               String    @id @default(uuid())
+  programId        String    @db.ForeignKey(AffiliateProgram)
+  program          AffiliateProgram @relation(fields: [programId], references: [id])
+  merchantSlug     String
+  destinationUrl   String
+  category         Category
+  status           MerchantStatus @default(ACTIVE)
+  logoUrl          String?
+  imageUrl         String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@ unique(programId, merchantSlug)
+  @@ index([programId])
+  @@ index([category])
+  @@ index([status])
+}
+
+model Category {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  merchants Merchant[]
+}
+
+model Merchant {
+  id               String    @id @default(uuid())
+  name             String
+  slug             String    @unique
+  description      String?
+  categoryId       String    @db.ForeignKey(Category)
+  category         Category   @relation(fields: [categoryId], references: [id])
+  affiliateNetworkId String @db.ForeignKey(AffiliateNetwork)
+  affiliateNetwork AffiliateNetwork @relation(fields: [affiliateNetworkId], references: [id])
+  status           MerchantStatus @default(ACTIVE)
+  logoUrl          String?
+  imageUrl         String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  affiliateLinks AffiliateLink[]
+}
+
+// ============================================
+// OFFERS AND DEALS
+// ============================================
+
+enum OfferStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+  SUSPENDED
+}
+
+enum OfferFeatured {
+  NO
+  YES
+  SCHEDULED
+}
+
+model Offer {
+  id               String    @id @default(uuid())
+  title            String
+  slug             String    @unique
+  description      String?
+  merchantId       String    @db.ForeignKey(Merchant)
+  merchant         Merchant   @relation(fields: [merchantId], references: [id])
+  categoryId       String    @db.ForeignKey(Category)
+  category         Category   @relation(fields: [categoryId], references: [id])
+  affiliateProgramId String @db.ForeignKey(AffiliateProgram)
+  affiliateProgram AffiliateProgram @relation(fields: [affiliateProgramId], references: [id])
+  status           OfferStatus @default(ACTIVE)
+  featured         OfferFeatured @default(NO)
+  expiryDate       DateTime?
+  clickCount       Int       @default(0)
+  impressionCount  Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@ index([merchantId])
+  @@ index([categoryId])
+  @@ index([affiliateProgramId])
+  @@ index([status])
+  @@ index([featured])
+}
+
+// ============================================
+// ADVERTISER SYSTEM
+// ============================================
+
+enum AdvertiserStatus {
+  PENDING
+  APPROVED
+  SUSPENDED
+  REJECTED
+
+  APPLICATION_SUBMITTED
+  APPLICATION_REVIEWED
+}
+
+enum ApplicationReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Advertiser {
+  id                String    @id @default(uuid())
+  companyName       String
+  contactPerson     String
+  businessEmail     String    @unique
+  telephone         String?
+  website           String?
+  businessDescription String?
+  billingDetails    Json?
+  verificationInfo  Json?
+  status            AdvertiserStatus @default(PENDING)
+  applicationReview ApplicationReviewStatus @default(APPLICATION_SUBMITTED)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  campaigns Campaign[]
+  invoices    Invoice[]
+}
+
+model AdvertiserApplication {
+  id               String    @id @default(uuid())
+  advertiserId     String    @db.ForeignKey(Advertiser)
+  advertiser       Advertiser @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+  status           ApplicationReviewStatus @default(PENDING)
+  submittedAt      DateTime  @default(now())
+  reviewedAt       DateTime?
+  reviewerId       String?   @db.ForeignKey(User)
+  reviewedBy       User?     @relation(fields: [reviewerId], references: [id])
+  reviewNotes      String?
+  documents        Json?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+// ============================================
+// ADVERTISING PACKAGES
+// ============================================
+
+enum PackageStatus {
+  ACTIVE
+  INACTIVE
+  PROMOTIONAL
+}
+
+enum BillingInterval {
+  MONTHLY
+  QUARTERLY
+  ANNUALLY
+}
+
+model AdvertisingPackage {
+  id               String    @id @default(uuid())
+  name             String
+  description      String
+  price            Decimal   @db.Decimal(12, 2)
+  billingInterval  BillingInterval
+  status           PackageStatus @default(ACTIVE)
+  placementEligibility Json?   // e.g., ["homepage-banner", "featured-brand"]
+  campaignDuration Int?      // in days
+  impressionLimit  Int?
+  clickLimit       Int?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+// ============================================
+// CAMPAIGNS
+// ============================================
+
+enum CampaignStatus {
+  DRAFT
+  PENDING_APPROVAL
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum CampaignObjective {
+  BRAND_AWARENESS
+  TRAFFIC
+  CONVERSIONS
+  LEAD_GENERATION
+}
+
+model Campaign {
+  id               String    @id @default(uuid())
+  advertiserId     String    @db.ForeignKey(Advertiser)
+  advertiser       Advertiser @relation(fields: [advertiserId], references: [id])
+  packageId        String    @db.ForeignKey(AdvertisingPackage)
+  package          AdvertisingPackage @relation(fields: [packageId], references: [id])
+  name             String
+  description      String?
+  objective        CampaignObjective
+  status           CampaignStatus @default(DRAFT)
+  placement        String?   // e.g., "homepage-banner", "featured-offer"
+  startDate        DateTime
+  endDate          DateTime
+  budget           Decimal   @db.Decimal(12, 2)
+  spent            Decimal   @db.Decimal(12, 2) @default(0)
+  impressionCount  Int       @default(0)
+  clickCount       Int       @default(0)
+  clickThroughRate Decimal  @db.Decimal(5, 2) @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@ index([advertiserId])
+  @@ index([status])
+  @@ index([packageId])
+}
+
+// ============================================
+// CAMPAIGN PLACEMENTS
+// ============================================
+
+model CampaignPlacement {
+  id          String    @id @default(uuid())
+  campaignId  String    @db.ForeignKey(Campaign)
+  campaign    Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  placement   String    // e.g., "homepage-banner", "featured-brand"
+  position    Int?
+  startDate   DateTime?
+  endDate     DateTime?
+  impressions Int       @default(0)
+  clicks      Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// ============================================
+// TRACKING EVENTS
+// ============================================
+
+model ClickEvent {
+  id             String    @id @default(uuid())
+  offerId        String?   @db.ForeignKey(Offer)
+  offer          Offer?    @relation(fields: [offerId], references: [id])
+  merchantId     String?   @db.ForeignKey(Merchant)
+  merchant       Merchant? @relation(fields: [merchantId], references: [id])
+  campaignId     String?   @db.ForeignKey(Campaign)
+  campaign       Campaign? @relation(fields: [campaignId], references: [id])
+  advertiserId   String?   @db.ForeignKey(Advertiser)
+  advertiser     Advertiser? @relation(fields: [advertiserId], references: [id])
+  userId         String?   @db.ForeignKey(User)
+  user           User?     @relation(fields: [userId], references: [id])
+  sessionId      String    // Anonymous session identifier
+  ipAddress      String?
+  userAgent      String?
+  deviceCategory String?   // "mobile", "desktop", "tablet"
+  landingPage    String
+  referralSource String?
+  timestamp      DateTime  @default(now())
+  affiliateParams Json?
+
+  @@ index([offerId])
+  @@ index([merchantId])
+  @@ index([campaignId])
+  @@ index([advertiserId])
+  @@ index([userId])
+  @@ index([timestamp])
+}
+
+model ImpressionEvent {
+  id             String    @id @default(uuid())
+  offerId        String?   @db.ForeignKey(Offer)
+  offer          Offer?    @relation(fields: [offerId], references: [id])
+  merchantId     String?   @db.ForeignKey(Merchant)
+  merchant       Merchant? @relation(fields: [merchantId], references: [id])
+  campaignId     String?   @db.ForeignKey(Campaign)
+  campaign       Campaign? @relation(fields: [campaignId], references: [id])
+  advertiserId   String?   @db.ForeignKey(Advertiser)
+  advertiser     Advertiser? @relation(fields: [advertiserId], references: [id])
+  sessionId      String    // Anonymous session identifier
+  ipAddress      String?
+  userAgent      String?
+  deviceCategory String?   // "mobile", "desktop", "tablet"
+  placement      String?
+  location       String?
+  timestamp      DateTime  @default(now())
+
+  @@ index([offerId])
+  @@ index([merchantId])
+  @@ index([campaignId])
+  @@ index([advertiserId])
+  @@ index([timestamp])
+}
+
+model Conversion {
+  id               String    @id @default(uuid())
+  offerId          String?   @db.ForeignKey(Offer)
+  offer            Offer?    @relation(fields: [offerId], references: [id])
+  merchantId       String?   @db.ForeignKey(Merchant)
+  merchant         Merchant? @relation(fields: [merchantId], references: [id])
+  campaignId       String?   @db.ForeignKey(Campaign)
+  campaign         Campaign? @relation(fields: [campaignId], references: [id])
+  advertiserId     String?   @db.ForeignKey(Advertiser)
+  advertiser       Advertiser? @relation(fields: [advertiserId], references: [id])
+  userId           String?   @db.ForeignKey(User)
+  user             User?     @relation(fields: [userId], references: [id])
+  sessionId        String    // Anonymous session identifier
+  type             String    // "click", "view", "sale", "lead"
+  status           String    // "pending", "approved", "reversed", "paid"
+  reportedRevenue  Decimal   @db.Decimal(12, 2)
+  commissionRate   Decimal   @db.Decimal(8, 4)
+  timestamp        DateTime  @default(now())
+  transactionId    String?   // External network transaction ID
+  affiliateParams  Json?
+
+  @@ index([offerId])
+  @@ index([merchantId])
+  @@ index([campaignId])
+  @@ index([advertiserId])
+  @@ index([status])
+  @@ index([timestamp])
+}
+
+// ============================================
+// FINANCIAL - COMMISSIONS
+// ============================================
+
+enum CommissionStatus {
+  PENDING
+  APPROVED
+  PAID
+  REVERSED
+}
+
+model AffiliateCommission {
+  id               String    @id @default(uuid())
+  offerId          String    @db.ForeignKey(Offer)
+  offer            Offer       @relation(fields: [offerId], references: [id])
+  merchantId       String    @db.ForeignKey(Merchant)
+  merchant          Merchant    @relation(fields: [merchantId], references: [id])
+  advertiserId     String?   @db.ForeignKey(Advertiser)
+  advertiser        Advertiser? @relation(fields: [advertiserId], references: [id])
+  amount           Decimal    @db.Decimal(12, 2)
+  commissionRate   Decimal    @db.Decimal(8, 4)
+  status           CommissionStatus @default(PENDING)
+  networkReference String?   // Affiliate network transaction ID
+  approvedAt       DateTime?
+  paidAt           DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@ index([offerId])
+  @@ index([merchantId])
+  @@ index([status])
+}
+
+// ============================================
+// BILLING - INVOICES AND PAYMENTS
+// ============================================
+
+model Invoice {
+  id               String    @id @default(uuid())
+  advertiserId     String    @db.ForeignKey(Advertiser)
+  advertiser       Advertiser @relation(fields: [advertiserId], references: [id])
+  campaignId       String?   @db.ForeignKey(Campaign)
+  campaign         Campaign? @relation(fields: [campaignId], references: [id])
+  advertisingPackageId String? @db.ForeignKey(AdvertisingPackage)
+  advertisingPackage AdvertisingPackage? @relation(fields: [advertisingPackageId], references: [id])
+  amount           Decimal   @db.Decimal(12, 2)
+  currency         String    @default("USD")
+  status           String    // "pending", "paid", "overdue"
+  invoiceNumber    String    @unique
+  issueDate        DateTime  @default(now())
+  dueDate          DateTime
+  paidDate         DateTime?
+  paymentMethod    String?
+  notes            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@ index([advertiserId])
+  @@ index([status])
+  @@ index([invoiceNumber])
+}
+
+model Payment {
+  id               String    @id @default(uuid())
+  invoiceId        String    @db.ForeignKey(Invoice)
+  invoice          Invoice     @relation(fields: [invoiceId], references: [id])
+  amount           Decimal   @db.Decimal(12, 2)
+  paymentMethod    String
+  transactionId    String?   // External payment provider transaction ID
+  status           String    // "pending", "completed", "failed", "refunded"
+  paymentDate      DateTime  @default(now())
+  createdAt        DateTime  @default(now())
+
+  @@ index([invoiceId])
+  @@ index([status])
+}
+
+// ============================================
+// SITE SETTINGS AND INTEGRATIONS
+// ============================================
+
+model SiteSetting {
+  key              String    @id
+  value            String?
+  type             String    // "string", "boolean", "json"
+  updatedAt        DateTime  @updatedAt
+
+  @@ unique([key])
+}
+
+model NewsletterSubscriber {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  subscribedAt DateTime @default(now())
+  isActive   Boolean   @default(true)
+  source     String?   // "website", "widget", "campaign"
+  consent    Boolean   @default(true)
+}
+
+model ContactInquiry {
+  id        String    @id @default(uuid())
+  name      String
+  email     String
+  subject   String
+  message   String
+  status    String    // "new", "read", "replied", "resolved"
+  createdAt DateTime  @default(now())
+  respondedAt DateTime?
+
+  @@ index([status])
+}
+
+// ============================================
+// AUDIT LOG
+// ============================================
+
+model AuditLog {
+  id               String    @id @default(uuid())
+  userId           String?   @db.ForeignKey(User)
+  user             User?     @relation(fields: [userId], references: [id])
+  action           String
+  resource         String    // e.g., "merchant", "offer", "campaign", "advertiser"
+  resourceId       String?
+  previousValue    Json?
+  newValue         Json?
+  ipAddress        String?
+  userAgent        String?
+  timestamp        DateTime  @default(now())
+
+  @@ index([userId])
+  @@ index([timestamp])
+  @@ index([resource])
+  @@ index([timestamp, resource])
+}
