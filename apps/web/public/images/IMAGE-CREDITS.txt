@@ -1,0 +1,30 @@
+ClickNShop image asset credits
+Photographs sourced from Unsplash. Each source is listed below.
+
+fashion-hero.webp - Gaku Suyama - Unsplash
+https://unsplash.com/photos/clothing-racks-with-apparel-in-a-well-lit-store-ZfjXu2U4yMQ
+
+tech-hero.webp - Dell - Unsplash
+https://unsplash.com/photos/person-using-laptop-on-table-dpbXgTh0Lac
+
+software-hero.webp - Lasse Jensen - Unsplash
+https://unsplash.com/photos/a-laptop-on-a-desk-fSSO5U_iwzk
+
+mobile-hero.webp - Jibin Samuel - Unsplash
+https://unsplash.com/photos/a-black-smartphone-resting-on-a-white-surface-vDmqcWC3yDI
+
+travel-hero.webp - Sevcan Alkan - Unsplash
+https://unsplash.com/photos/airplane-taking-off-into-a-cloudy-sky-KMP2iz3uwas
+
+wellness-hero.webp - Cathy Pham - Unsplash
+https://unsplash.com/photos/woman-using-dumbbells-3jAN9InapQI
+
+gifts-hero.webp - Olivia Bollen - Unsplash
+https://unsplash.com/photos/elegant-gift-boxes-with-rose-ribbons-and-flowers-0SyHbonwl1M
+
+home-hero.webp - Evan Wise - Unsplash
+https://unsplash.com/photos/a-living-room-filled-with-furniture-and-a-large-window-v7MuTvQZkQU
+
+
+Pets - Andrew S - Unsplash
+https://unsplash.com/photos/a-dog-and-a-cat-laying-in-the-grass-ouo1hbizWwo

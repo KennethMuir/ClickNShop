@@ -42,3 +42,4 @@ logs/
 .next/
 out/
 dist/
+!apps/web/package-lock.json
